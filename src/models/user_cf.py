@@ -4,7 +4,7 @@ from src.data.matrix import build_user_item_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 
 class UserCF:
-    def fit(self, train_df: pd.DataFrame) -> None:
+    def fit(self, train_df: pd.DataFrame, min_ratings: int = 20) -> None:
         """Fit the model on training ratings.
 
         Builds the user-item matrix and computes user-user cosine similarities.
@@ -16,6 +16,8 @@ class UserCF:
         self._sim = cosine_similarity(self._matrix)
         self._global_mean = train_df["rating"].mean()
         self._idx_to_item = {idx: movie_id for movie_id, idx in self._item_idx.items()}
+        self._item_counts = self._matrix.getnnz(axis=0)
+        self._enough_support = self._item_counts >= min_ratings
 
 
     def predict(self, user_id: int, movie_id: int) -> float:
@@ -43,7 +45,10 @@ class UserCF:
         numerator = self._sim[u] @ dense_matrix
         denominator = self._sim[u] @ rated
 
-        scores = np.where(denominator > 0, numerator / denominator, self._global_mean)
+        safe_denom = np.where(denominator >0, denominator, 1)
+        scores = np.where(denominator > 0, numerator / safe_denom, self._global_mean)
+        scores[~self._enough_support] = -np.inf
+
         
         seen_indices = [self._item_idx[movie_id] for movie_id in seen if movie_id in self._item_idx]
         scores[seen_indices] = -np.inf
