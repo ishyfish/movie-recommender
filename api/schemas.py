@@ -8,3 +8,7 @@ class RatingIn(BaseModel):
     user_id: int
     movie_id: int
     rating: float = Field(ge = 1, le = 5)
+
+class RecommendationsOut(BaseModel):
+    personalized: bool
+    movies: list[MovieOut]
