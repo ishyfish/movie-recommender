@@ -96,3 +96,14 @@ class MatrixFactorization:
 
         return [self._idx_to_item[idx] for idx in top_indices]
 
+    def similar_items(self, movie_id: int, n: int) -> list:
+        i = self._item_idx.get(movie_id)
+        if i is None:
+            return []
+        #cosine similarity of movie i's vector against all item vectors
+        q = self._q
+        target = q[i]
+        sims = q @ target / (np.linalg.norm(q, axis = 1) * np.linalg.norm(target) + 1e-9)
+        sims[i] = -np.inf                       #exclude movie itself
+        top = np.argsort(sims)[::-1][:n]
+        return [self._idx_to_item[idx] for idx in top]
