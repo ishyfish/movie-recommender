@@ -107,3 +107,33 @@ class MatrixFactorization:
         sims[i] = -np.inf                       #exclude movie itself
         top = np.argsort(sims)[::-1][:n]
         return [self._idx_to_item[idx] for idx in top]
+    
+    def fold_in (self, ratings, n_steps = 20):
+        p_u = np.zeros(self.n_factors)
+        b_u = 0.0
+
+        for _ in range(n_steps):
+            for movie_id, r in ratings:
+                i = self._item_idx.get(movie_id)
+                if i is None:
+                    continue
+                
+                pred = self._global_mean + b_u + self._bias_i[i] + p_u @ self._q[i]
+                e = r - pred
+
+                b_u += self.lr * (e - self.reg * b_u)
+                p_u += self.lr * (e * self._q[i] - self.reg * p_u)
+
+        return p_u, b_u
+
+
+    def recommend_new (self, ratings, n: int, seen: set):
+        p_u, b_u = self.fold_in(ratings)
+        scores = self._global_mean + b_u + self._bias_i + p_u @ self._q.T
+
+        seen_indices = [self._item_idx[i] for i in seen if i in self._item_idx]
+        scores[seen_indices] = -np.inf
+        top_indices = np.argsort(scores)[::-1] [:n]
+
+        return [self._idx_to_item[idx] for idx in top_indices]
+
